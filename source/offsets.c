@@ -45,17 +45,18 @@
  */
 
 /*
- * FW 12.00.00 -- ported 2026-09-14.
+ * FW 12.00.00 -- originally ported 2026-09-14; table restored 2026-10-25.
  *
- * Provenance for every entry is recorded in findings/PORT-1200-COMPLETE.md.
- * Values were re-derived from k12.elf rather than extrapolated from 7.61.
+ * Provenance for the original port is in findings/PORT-1200-COMPLETE.md; values
+ * were re-derived from k12.elf rather than extrapolated from 7.61.
  *
- * NOTE: this firmware does NOT use hv_defeat_0607. The MSR 0x1B (APIC_BASE)
- * intercept handler was removed between 11.00 and 12.00, so the wrmsr at the
- * heart of that technique is logged and discarded -- see
- * findings/BLOCKER-apic-base-patched-1200.md. The defeat for 12.00 is the
- * S3/AP root-0 route (findings/PORT-S3-AP-ROOT0-1200.md). The gadget and
- * kernel offsets below are still required by prepare_resume.c and gpu.c.
+ * NOTE: this firmware does NOT use hv_defeat_0607 or hv_defeat_1160. The MSR
+ * 0x1B (APIC_BASE) intercept handler was removed between 11.00 and 12.00, so
+ * the wrmsr at the heart of those techniques is logged and discarded -- see
+ * findings/BLOCKER-apic-base-patched-1200.md. Every 12.xx release is instead
+ * routed to hv_defeat_13xx (DR0 khook + AP payload clearing NP_ENABLE), whose
+ * fields are in the 12.xx tables at the bottom of this file. Those values were
+ * transcribed from the public 10.xx release ELF, not independently re-derived.
  */
 
 
@@ -529,52 +530,376 @@ offset_list off_1360 = {
  * offsets_present() refuses a table missing what the route needs -- by design.
  */
 
-/*
- * FW 12.02 -- derived 2026-10-15 by signature. NOT BOOTED. 41 fields.
- * Every method reproduces the recorded value on every firmware that has one;
- * see scratchpad/emit_full.py for the per-method scores.
- * ABSENT ON PURPOSE (no method reached 100%): KERNEL_UART_OVERRIDE, IOMMU_SOFTC,
- * HV_CODE_CAVE_PA, HV_HANDLE_VMEXIT_PA, KERNEL_SYM_DATA_CAVE,
- * KERNEL_SYM_MP_STARTUP_INIT_VECTOR, NVS_SIZETAB, PRELOAD_METADATA.
- * offsets_present() refuses a table missing what the route needs -- by design.
- */
+/* ======================================================================
+ * PS5 12.xx TABLES -- TRANSCRIBED FROM THE PUBLIC 10.xx RELEASE ELF
+ *
+ * Source: ps5-linux-loader-10xx.elf, SHA256
+ *   6d7250e148797bd4f50ecd4a74dd475e82c00395d38ef3a43aad98cbadd6f4c2
+ *
+ * These are NOT independently re-derived: no 12.xx kernel image or hypervisor
+ * dump was available. The release ELF is unstripped, and its off_1360 table was
+ * checked field-by-field against include/offsets.h (57/58 initialised fields
+ * match, in the same order; the one difference is HOOK_ACPI_WAKEUP_MACHDEP,
+ * which this route does not use), so the layout below is the loader's own.
+ *
+ * ALL FIVE tables carry every field hv_defeat_13xx() requires: the KERNEL_SYM_*
+ * trio, all khook gadgets, HV_HANDLE_VMEXIT_PA / HV_CODE_CAVE_PA, NVS_SIZETAB,
+ * PRELOAD_METADATA, KERNEL_UART_OVERRIDE, FUN_PRINTF, KERNEL_CFI_CHECK and the
+ * video/WiFi offsets. The only zero fields are the 0506-only ones and the two
+ * persistent-mode-only gadgets, which oneshot=1 never emits.
+ *
+ * RISKS, in order of suspicion if a boot fails:
+ *   - 12.20 and 12.40 are byte-identical in the release; 12.40 may simply never
+ *     have been re-derived.
+ *   - 12.60 is an alias for 12.70 (no 12.60 table exists in the release).
+ *   - 12.00's KERNEL_CODE_CAVE (0x123440) is far lower than 13.60's 0xCB92C0;
+ *     confirm the bytes at runtime are a NOP cave before trusting it.
+ *   - The HV_* addresses assume a carveout at HV_BASE_REGULAR; prepare_resume
+ *     re-bases them onto the runtime carveout, but they are still unvalidated
+ *     on 12.xx hardware.
+ * ====================================================================== */
 
 /*
- * FW 12.20 -- derived 2026-10-15 by signature. NOT BOOTED. 41 fields.
- * Every method reproduces the recorded value on every firmware that has one;
- * see scratchpad/emit_full.py for the per-method scores.
- * ABSENT ON PURPOSE (no method reached 100%): KERNEL_UART_OVERRIDE, IOMMU_SOFTC,
- * HV_CODE_CAVE_PA, HV_HANDLE_VMEXIT_PA, KERNEL_SYM_DATA_CAVE,
- * KERNEL_SYM_MP_STARTUP_INIT_VECTOR, NVS_SIZETAB, PRELOAD_METADATA.
- * offsets_present() refuses a table missing what the route needs -- by design.
+ * FW 12.00 -- LIFTED, not re-derived. 60 fields.
+ *
+ * NOTE: 12.xx does NOT use hv_defeat_0607 or hv_defeat_1160. The MSR 0x1B
+ * (APIC_BASE) intercept that powers both was removed between 11.00 and 12.00,
+ * so the release routes every 12.xx to hv_defeat_13xx (DR0 khook + AP payload
+ * clearing NESTED_CTRL.NP_ENABLE), exactly like 13.xx.
+ *
+ * The HV_* fields are absolute physical addresses and live in the hypervisor
+ * image, not x86_kernel.elf; they cannot be re-derived from a kernel dump.
  */
+offset_list off_1200 = {
+    .IOMMU_SOFTC = 0x3599510,
+    .VMSPACE_VM_VMID = 0x1FC,
+    .VMSPACE_VM_PMAP = 0x1D8,
+    .DATA_BASE_GVMSPACE = 0x2E7E570,
+    .ACPIGBL_FACS = 0x3A04C80,
+    .IDT = 0x3BD8300,
+    .COMMON_TSS = 0x3BDAFE0,
+    .STOPPED_CPUS = 0x0,
+    .FUN_STOP_CPUS = 0x0,
+    .FUN_AS_LAPIC_EOI = 0x0,
+    .FUN_HV_UNMAP_PT_TMR = 0x0,
+    .FUN_MEMCPY = 0x2EF240,
+    .GAD_ADD_RSP_28_POP_RBP_RET = 0xA70E54,
+    .GAD_IRETQ = 0x2B362D,
+    .GAD_POP_RAX_RET = 0x26EA50,
+    .GAD_POP_RDI_RET = 0x251DF8,
+    .GAD_POP_RSI_RET = 0x212930,
+    .GAD_POP_RDX_RET = 0x34F66B,
+    .GAD_POP_RCX_RET = 0x341252,
+    .GAD_POP_RSP_RET = 0x2B6490,
+    .GAD_WRMSR_RET = 0x2B0B24,
+    .GAD_MOV_QWORD_PTR_RDI_RSI_POP_RBP_RET = 0x47EACA,
+    .HOOK_ACPI_WAKEUP_MACHDEP = 0x43C2D0,
+    .KERNEL_CODE_CAVE = 0x123440,
+    .FUN_PRINTF = 0x544310,
+    .FUN_HV_IOMMU_SET_BUFFERS = 0xC9DCF0,
+    .FUN_HV_IOMM_WAIT_COMPLETION = 0xC9DC30,
+    .FUN_SMP_RENDEZVOUS = 0xB8FCE0,
+    .FUN_SMP_NO_RENDEVOUS_BARRIER = 0x31DB30,
+    .HV_CODE_CAVE_PA = 0x62806F00,
+    .HV_HANDLE_VMEXIT_PA = 0x6283374D,
+    .KERNEL_UART_OVERRIDE = 0x2275CD8,
+    .KERNEL_CFI_CHECK = 0x4F9FD0,
+    .G_VBIOS = 0x3DF79F0,
+    .FUN_TRANSMITTER_CONTROL = 0xC95BF0,
+    .FUN_MP3_INITIALIZE = 0xAA2140,
+    .FUN_MP3_INVOKE = 0xAA0D40,
+    .PS5_WIFI_FW_OFFSET = 0x15A83F0,
+    .PS5_WIFI_FW_SIZE = 0x799C0,
+    .KERNEL_SYM_HV_MP_STARTUP_CALL = 0xC9E0D0,
+    .KERNEL_SYM_MP_STARTUP_INIT_VECTOR = 0x3187F8,
+    .KERNEL_SYM_DATA_CAVE = 0x2DB5000,
+    .GAD_PIVOT_ADD_RSP28_RET = 0x2A82DE,
+    .GAD_POP_R8_RET = 0xC18E0D,
+    .GAD_STORE_RCX_R8_RET = 0x51E819,
+    .GAD_STORE_RDI8_RCX_RET = 0x3D685F,
+    .GAD_OR_RCX_EAX_RET = 0x899F90,
+    .GAD_SET_DR7_RAX = 0xA95BA6,
+    .GAD_ST_RCX_RDX_RET = 0x8BBBE5,
+    .GAD_ST_RCX_RAX_RET = 0x369F6F,
+    .GAD_MOV_RAX_RSI_RET = 0x971FD4,
+    .GAD_MOV_RAX_RDI_RET = 0x2B9F11,
+    .GAD_REP_MOVSB = 0x30B847,
+    .GAD_CLD_RET = 0x3807D0,
+    .GAD_RET_TRAMP = 0x26EA51,
+    .GAD_DBREG_RESUME = 0x2ACB78,
+    .GAD_STORE_RDI_RAX_RET = 0x0,
+    .GAD_OR_RSI_ECX_RET = 0x0,
+    .NVS_SIZETAB = 0x1A8A900,
+    .PRELOAD_METADATA = 0x3E0D070,
+};
 
 /*
- * FW 12.40 -- derived 2026-10-15 by signature. NOT BOOTED. 41 fields.
- * Every method reproduces the recorded value on every firmware that has one;
- * see scratchpad/emit_full.py for the per-method scores.
- * ABSENT ON PURPOSE (no method reached 100%): KERNEL_UART_OVERRIDE, IOMMU_SOFTC,
- * HV_CODE_CAVE_PA, HV_HANDLE_VMEXIT_PA, KERNEL_SYM_DATA_CAVE,
- * KERNEL_SYM_MP_STARTUP_INIT_VECTOR, NVS_SIZETAB, PRELOAD_METADATA.
- * offsets_present() refuses a table missing what the route needs -- by design.
+ * FW 12.02 -- LIFTED, not re-derived. 60 fields.
+ * Differs from 12.00 in 9 fields (mostly +0x10/+0x20 shifts); KERNEL_CODE_CAVE
+ * moves 0x123440 -> 0x123470.
  */
+offset_list off_1202 = {
+    .IOMMU_SOFTC = 0x3599510,
+    .VMSPACE_VM_VMID = 0x1FC,
+    .VMSPACE_VM_PMAP = 0x1D8,
+    .DATA_BASE_GVMSPACE = 0x2E7E570,
+    .ACPIGBL_FACS = 0x3A04C80,
+    .IDT = 0x3BD8300,
+    .COMMON_TSS = 0x3BDAFE0,
+    .STOPPED_CPUS = 0x0,
+    .FUN_STOP_CPUS = 0x0,
+    .FUN_AS_LAPIC_EOI = 0x0,
+    .FUN_HV_UNMAP_PT_TMR = 0x0,
+    .FUN_MEMCPY = 0x2EF240,
+    .GAD_ADD_RSP_28_POP_RBP_RET = 0xA70E64,
+    .GAD_IRETQ = 0x2B362D,
+    .GAD_POP_RAX_RET = 0x26EA50,
+    .GAD_POP_RDI_RET = 0x251DF8,
+    .GAD_POP_RSI_RET = 0x212930,
+    .GAD_POP_RDX_RET = 0x34F66B,
+    .GAD_POP_RCX_RET = 0x341252,
+    .GAD_POP_RSP_RET = 0x2B6490,
+    .GAD_WRMSR_RET = 0x2B0B24,
+    .GAD_MOV_QWORD_PTR_RDI_RSI_POP_RBP_RET = 0x47EACA,
+    .HOOK_ACPI_WAKEUP_MACHDEP = 0x43C2D0,
+    .KERNEL_CODE_CAVE = 0x123470,
+    .FUN_PRINTF = 0x544310,
+    .FUN_HV_IOMMU_SET_BUFFERS = 0xC9DCF0,
+    .FUN_HV_IOMM_WAIT_COMPLETION = 0xC9DC30,
+    .FUN_SMP_RENDEZVOUS = 0xB8FCE0,
+    .FUN_SMP_NO_RENDEVOUS_BARRIER = 0x31DB30,
+    .HV_CODE_CAVE_PA = 0x62806F00,
+    .HV_HANDLE_VMEXIT_PA = 0x6283374D,
+    .KERNEL_UART_OVERRIDE = 0x2275CD8,
+    .KERNEL_CFI_CHECK = 0x4F9FD0,
+    .G_VBIOS = 0x3DF79F0,
+    .FUN_TRANSMITTER_CONTROL = 0xC95BF0,
+    .FUN_MP3_INITIALIZE = 0xAA2150,
+    .FUN_MP3_INVOKE = 0xAA0D50,
+    .PS5_WIFI_FW_OFFSET = 0x15A83F0,
+    .PS5_WIFI_FW_SIZE = 0x799C0,
+    .KERNEL_SYM_HV_MP_STARTUP_CALL = 0xC9E0D0,
+    .KERNEL_SYM_MP_STARTUP_INIT_VECTOR = 0x3187F8,
+    .KERNEL_SYM_DATA_CAVE = 0x2DB5000,
+    .GAD_PIVOT_ADD_RSP28_RET = 0x2A82DE,
+    .GAD_POP_R8_RET = 0xC18E0D,
+    .GAD_STORE_RCX_R8_RET = 0x51E819,
+    .GAD_STORE_RDI8_RCX_RET = 0x3D685F,
+    .GAD_OR_RCX_EAX_RET = 0x899FA0,
+    .GAD_SET_DR7_RAX = 0xA95BB6,
+    .GAD_ST_RCX_RDX_RET = 0x8BBBF5,
+    .GAD_ST_RCX_RAX_RET = 0x369F6F,
+    .GAD_MOV_RAX_RSI_RET = 0x971FE4,
+    .GAD_MOV_RAX_RDI_RET = 0x2B9F11,
+    .GAD_REP_MOVSB = 0x30B847,
+    .GAD_CLD_RET = 0x36A6B0,
+    .GAD_RET_TRAMP = 0x26EA51,
+    .GAD_DBREG_RESUME = 0x2ACB78,
+    .GAD_STORE_RDI_RAX_RET = 0x0,
+    .GAD_OR_RSI_ECX_RET = 0x0,
+    .NVS_SIZETAB = 0x1A8A900,
+    .PRELOAD_METADATA = 0x3E0D070,
+};
 
 /*
- * FW 12.60 -- derived 2026-10-15 by signature. NOT BOOTED. 41 fields.
- * Every method reproduces the recorded value on every firmware that has one;
- * see scratchpad/emit_full.py for the per-method scores.
- * ABSENT ON PURPOSE (no method reached 100%): KERNEL_UART_OVERRIDE, IOMMU_SOFTC,
- * HV_CODE_CAVE_PA, HV_HANDLE_VMEXIT_PA, KERNEL_SYM_DATA_CAVE,
- * KERNEL_SYM_MP_STARTUP_INIT_VECTOR, NVS_SIZETAB, PRELOAD_METADATA.
- * offsets_present() refuses a table missing what the route needs -- by design.
+ * FW 12.20 -- LIFTED, not re-derived. 60 fields.
+ * NOTE: the release's 12.40 table is byte-for-byte identical to this one.
  */
+offset_list off_1220 = {
+    .IOMMU_SOFTC = 0x3599510,
+    .VMSPACE_VM_VMID = 0x1FC,
+    .VMSPACE_VM_PMAP = 0x1D8,
+    .DATA_BASE_GVMSPACE = 0x2E7E570,
+    .ACPIGBL_FACS = 0x3A04C80,
+    .IDT = 0x3BD8300,
+    .COMMON_TSS = 0x3BDAFE0,
+    .STOPPED_CPUS = 0x0,
+    .FUN_STOP_CPUS = 0x0,
+    .FUN_AS_LAPIC_EOI = 0x0,
+    .FUN_HV_UNMAP_PT_TMR = 0x0,
+    .FUN_MEMCPY = 0x2EF0C0,
+    .GAD_ADD_RSP_28_POP_RBP_RET = 0xA70CE4,
+    .GAD_IRETQ = 0x2B34AD,
+    .GAD_POP_RAX_RET = 0x26E8D0,
+    .GAD_POP_RDI_RET = 0x251C78,
+    .GAD_POP_RSI_RET = 0x2127B0,
+    .GAD_POP_RDX_RET = 0x34F4EB,
+    .GAD_POP_RCX_RET = 0x3410D2,
+    .GAD_POP_RSP_RET = 0x2B6310,
+    .GAD_WRMSR_RET = 0x2B09A4,
+    .GAD_MOV_QWORD_PTR_RDI_RSI_POP_RBP_RET = 0x47E94A,
+    .HOOK_ACPI_WAKEUP_MACHDEP = 0x43C150,
+    .KERNEL_CODE_CAVE = 0x1232F0,
+    .FUN_PRINTF = 0x544190,
+    .FUN_HV_IOMMU_SET_BUFFERS = 0xC9DB70,
+    .FUN_HV_IOMM_WAIT_COMPLETION = 0xC9DAB0,
+    .FUN_SMP_RENDEZVOUS = 0xB8FB60,
+    .FUN_SMP_NO_RENDEVOUS_BARRIER = 0x31D9B0,
+    .HV_CODE_CAVE_PA = 0x62806F00,
+    .HV_HANDLE_VMEXIT_PA = 0x6283374D,
+    .KERNEL_UART_OVERRIDE = 0x2275CD8,
+    .KERNEL_CFI_CHECK = 0x4F9E50,
+    .G_VBIOS = 0x3DF79F0,
+    .FUN_TRANSMITTER_CONTROL = 0xC95A70,
+    .FUN_MP3_INITIALIZE = 0xAA1FD0,
+    .FUN_MP3_INVOKE = 0xAA0BD0,
+    .PS5_WIFI_FW_OFFSET = 0x15A83F0,
+    .PS5_WIFI_FW_SIZE = 0x799C0,
+    .KERNEL_SYM_HV_MP_STARTUP_CALL = 0xC9DF50,
+    .KERNEL_SYM_MP_STARTUP_INIT_VECTOR = 0x318678,
+    .KERNEL_SYM_DATA_CAVE = 0x2DB5000,
+    .GAD_PIVOT_ADD_RSP28_RET = 0x2A815E,
+    .GAD_POP_R8_RET = 0xC18C8D,
+    .GAD_STORE_RCX_R8_RET = 0x51E699,
+    .GAD_STORE_RDI8_RCX_RET = 0x3D66DF,
+    .GAD_OR_RCX_EAX_RET = 0x899E20,
+    .GAD_SET_DR7_RAX = 0xA95A36,
+    .GAD_ST_RCX_RDX_RET = 0x8BBA75,
+    .GAD_ST_RCX_RAX_RET = 0x369DEF,
+    .GAD_MOV_RAX_RSI_RET = 0x971E64,
+    .GAD_MOV_RAX_RDI_RET = 0x2B9D91,
+    .GAD_REP_MOVSB = 0x30B6C7,
+    .GAD_CLD_RET = 0x36A530,
+    .GAD_RET_TRAMP = 0x26E8D1,
+    .GAD_DBREG_RESUME = 0x2AC9F8,
+    .GAD_STORE_RDI_RAX_RET = 0x0,
+    .GAD_OR_RSI_ECX_RET = 0x0,
+    .NVS_SIZETAB = 0x1A8A900,
+    .PRELOAD_METADATA = 0x3E0D070,
+};
 
 /*
- * FW 12.70 -- derived 2026-10-15 by signature. NOT BOOTED. 41 fields.
- * Every method reproduces the recorded value on every firmware that has one;
- * see scratchpad/emit_full.py for the per-method scores.
- * ABSENT ON PURPOSE (no method reached 100%): KERNEL_UART_OVERRIDE, IOMMU_SOFTC,
- * HV_CODE_CAVE_PA, HV_HANDLE_VMEXIT_PA, KERNEL_SYM_DATA_CAVE,
- * KERNEL_SYM_MP_STARTUP_INIT_VECTOR, NVS_SIZETAB, PRELOAD_METADATA.
- * offsets_present() refuses a table missing what the route needs -- by design.
+ * FW 12.40 -- LIFTED, not re-derived. 60 fields.
+ * Identical to off_1220 in the release ELF; kept as a distinct symbol so a
+ * corrected 12.40 table can replace it without touching anything else.
  */
+offset_list off_1240 = {
+    .IOMMU_SOFTC = 0x3599510,
+    .VMSPACE_VM_VMID = 0x1FC,
+    .VMSPACE_VM_PMAP = 0x1D8,
+    .DATA_BASE_GVMSPACE = 0x2E7E570,
+    .ACPIGBL_FACS = 0x3A04C80,
+    .IDT = 0x3BD8300,
+    .COMMON_TSS = 0x3BDAFE0,
+    .STOPPED_CPUS = 0x0,
+    .FUN_STOP_CPUS = 0x0,
+    .FUN_AS_LAPIC_EOI = 0x0,
+    .FUN_HV_UNMAP_PT_TMR = 0x0,
+    .FUN_MEMCPY = 0x2EF0C0,
+    .GAD_ADD_RSP_28_POP_RBP_RET = 0xA70CE4,
+    .GAD_IRETQ = 0x2B34AD,
+    .GAD_POP_RAX_RET = 0x26E8D0,
+    .GAD_POP_RDI_RET = 0x251C78,
+    .GAD_POP_RSI_RET = 0x2127B0,
+    .GAD_POP_RDX_RET = 0x34F4EB,
+    .GAD_POP_RCX_RET = 0x3410D2,
+    .GAD_POP_RSP_RET = 0x2B6310,
+    .GAD_WRMSR_RET = 0x2B09A4,
+    .GAD_MOV_QWORD_PTR_RDI_RSI_POP_RBP_RET = 0x47E94A,
+    .HOOK_ACPI_WAKEUP_MACHDEP = 0x43C150,
+    .KERNEL_CODE_CAVE = 0x1232F0,
+    .FUN_PRINTF = 0x544190,
+    .FUN_HV_IOMMU_SET_BUFFERS = 0xC9DB70,
+    .FUN_HV_IOMM_WAIT_COMPLETION = 0xC9DAB0,
+    .FUN_SMP_RENDEZVOUS = 0xB8FB60,
+    .FUN_SMP_NO_RENDEVOUS_BARRIER = 0x31D9B0,
+    .HV_CODE_CAVE_PA = 0x62806F00,
+    .HV_HANDLE_VMEXIT_PA = 0x6283374D,
+    .KERNEL_UART_OVERRIDE = 0x2275CD8,
+    .KERNEL_CFI_CHECK = 0x4F9E50,
+    .G_VBIOS = 0x3DF79F0,
+    .FUN_TRANSMITTER_CONTROL = 0xC95A70,
+    .FUN_MP3_INITIALIZE = 0xAA1FD0,
+    .FUN_MP3_INVOKE = 0xAA0BD0,
+    .PS5_WIFI_FW_OFFSET = 0x15A83F0,
+    .PS5_WIFI_FW_SIZE = 0x799C0,
+    .KERNEL_SYM_HV_MP_STARTUP_CALL = 0xC9DF50,
+    .KERNEL_SYM_MP_STARTUP_INIT_VECTOR = 0x318678,
+    .KERNEL_SYM_DATA_CAVE = 0x2DB5000,
+    .GAD_PIVOT_ADD_RSP28_RET = 0x2A815E,
+    .GAD_POP_R8_RET = 0xC18C8D,
+    .GAD_STORE_RCX_R8_RET = 0x51E699,
+    .GAD_STORE_RDI8_RCX_RET = 0x3D66DF,
+    .GAD_OR_RCX_EAX_RET = 0x899E20,
+    .GAD_SET_DR7_RAX = 0xA95A36,
+    .GAD_ST_RCX_RDX_RET = 0x8BBA75,
+    .GAD_ST_RCX_RAX_RET = 0x369DEF,
+    .GAD_MOV_RAX_RSI_RET = 0x971E64,
+    .GAD_MOV_RAX_RDI_RET = 0x2B9D91,
+    .GAD_REP_MOVSB = 0x30B6C7,
+    .GAD_CLD_RET = 0x36A530,
+    .GAD_RET_TRAMP = 0x26E8D1,
+    .GAD_DBREG_RESUME = 0x2AC9F8,
+    .GAD_STORE_RDI_RAX_RET = 0x0,
+    .GAD_OR_RSI_ECX_RET = 0x0,
+    .NVS_SIZETAB = 0x1A8A900,
+    .PRELOAD_METADATA = 0x3E0D070,
+};
+
+/*
+ * FW 12.70 -- LIFTED, not re-derived. 60 fields.
+ * Differs from 12.20/12.40 by a uniform +0x60 in 10 function/gadget fields.
+ * 12.60 has no separate table in the release and is aliased to this one.
+ */
+offset_list off_1270 = {
+    .IOMMU_SOFTC = 0x3599510,
+    .VMSPACE_VM_VMID = 0x1FC,
+    .VMSPACE_VM_PMAP = 0x1D8,
+    .DATA_BASE_GVMSPACE = 0x2E7E570,
+    .ACPIGBL_FACS = 0x3A04C80,
+    .IDT = 0x3BD8300,
+    .COMMON_TSS = 0x3BDAFE0,
+    .STOPPED_CPUS = 0x0,
+    .FUN_STOP_CPUS = 0x0,
+    .FUN_AS_LAPIC_EOI = 0x0,
+    .FUN_HV_UNMAP_PT_TMR = 0x0,
+    .FUN_MEMCPY = 0x2EF0C0,
+    .GAD_ADD_RSP_28_POP_RBP_RET = 0xA70D44,
+    .GAD_IRETQ = 0x2B34AD,
+    .GAD_POP_RAX_RET = 0x26E8D0,
+    .GAD_POP_RDI_RET = 0x251C78,
+    .GAD_POP_RSI_RET = 0x2127B0,
+    .GAD_POP_RDX_RET = 0x34F4EB,
+    .GAD_POP_RCX_RET = 0x3410D2,
+    .GAD_POP_RSP_RET = 0x2B6310,
+    .GAD_WRMSR_RET = 0x2B09A4,
+    .GAD_MOV_QWORD_PTR_RDI_RSI_POP_RBP_RET = 0x47E94A,
+    .HOOK_ACPI_WAKEUP_MACHDEP = 0x43C150,
+    .KERNEL_CODE_CAVE = 0x1232F0,
+    .FUN_PRINTF = 0x544190,
+    .FUN_HV_IOMMU_SET_BUFFERS = 0xC9DBD0,
+    .FUN_HV_IOMM_WAIT_COMPLETION = 0xC9DB10,
+    .FUN_SMP_RENDEZVOUS = 0xB8FBC0,
+    .FUN_SMP_NO_RENDEVOUS_BARRIER = 0x31D9B0,
+    .HV_CODE_CAVE_PA = 0x62806F00,
+    .HV_HANDLE_VMEXIT_PA = 0x6283374D,
+    .KERNEL_UART_OVERRIDE = 0x2275CD8,
+    .KERNEL_CFI_CHECK = 0x4F9E50,
+    .G_VBIOS = 0x3DF79F0,
+    .FUN_TRANSMITTER_CONTROL = 0xC95AD0,
+    .FUN_MP3_INITIALIZE = 0xAA2030,
+    .FUN_MP3_INVOKE = 0xAA0C30,
+    .PS5_WIFI_FW_OFFSET = 0x15A83F0,
+    .PS5_WIFI_FW_SIZE = 0x799C0,
+    .KERNEL_SYM_HV_MP_STARTUP_CALL = 0xC9DFB0,
+    .KERNEL_SYM_MP_STARTUP_INIT_VECTOR = 0x318678,
+    .KERNEL_SYM_DATA_CAVE = 0x2DB5000,
+    .GAD_PIVOT_ADD_RSP28_RET = 0x2A815E,
+    .GAD_POP_R8_RET = 0xC18CED,
+    .GAD_STORE_RCX_R8_RET = 0x51E699,
+    .GAD_STORE_RDI8_RCX_RET = 0x3D66DF,
+    .GAD_OR_RCX_EAX_RET = 0x899E20,
+    .GAD_SET_DR7_RAX = 0xA95A96,
+    .GAD_ST_RCX_RDX_RET = 0x8BBA75,
+    .GAD_ST_RCX_RAX_RET = 0x369DEF,
+    .GAD_MOV_RAX_RSI_RET = 0x971E64,
+    .GAD_MOV_RAX_RDI_RET = 0x2B9D91,
+    .GAD_REP_MOVSB = 0x30B6C7,
+    .GAD_CLD_RET = 0x36A530,
+    .GAD_RET_TRAMP = 0x26E8D1,
+    .GAD_DBREG_RESUME = 0x2AC9F8,
+    .GAD_STORE_RDI_RAX_RET = 0x0,
+    .GAD_OR_RSI_ECX_RET = 0x0,
+    .NVS_SIZETAB = 0x1A8A900,
+    .PRELOAD_METADATA = 0x3E0D070,
+};

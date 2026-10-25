@@ -92,4 +92,13 @@ typedef struct _offset_list {
 
 extern offset_list off_1360;
 
+/* 12.xx -- khook (hv_defeat_13xx) route. Transcribed from the 10.xx release ELF;
+ * see the provenance note above the tables in source/offsets.c. 12.60 has no
+ * separate table in the release and is aliased to off_1270 in set_offsets(). */
+extern offset_list off_1200;
+extern offset_list off_1202;
+extern offset_list off_1220;
+extern offset_list off_1240;
+extern offset_list off_1270;
+
 #endif

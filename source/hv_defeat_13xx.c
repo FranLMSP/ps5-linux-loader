@@ -21,10 +21,10 @@
  *   Free IST slots on 13.60 are 3, 6 and 7, so this is the whole budget.
  *
  * OFFSET DISCIPLINE
- *   Every address this file needs comes from env_offset (off_1360). Values that are not yet
- *   derived are 0 in that table and this function ABORTS on them rather than proceeding on a
- *   guess -- a wrong offset is worse than a missing one. See the [MISSING] markers in
- *   source/offsets.c. */
+ *   Every address this file needs comes from env_offset (off_1200/off_1202/off_1220/
+ *   off_1240/off_1270/off_1360). Values that are not yet derived are 0 in that table and this
+ *   function ABORTS on them rather than proceeding on a guess -- a wrong offset is worse than a
+ *   missing one. See the [MISSING] markers in source/offsets.c. */
 
 #include "hv_defeat_13xx.h"
 #include "config.h"
@@ -349,7 +349,7 @@ int hv_defeat_13xx(void *shellcode_kernel, size_t shellcode_kernel_len) {
   int ret;
 
   if (!offsets_present()) {
-    notify("13.60 offsets are incomplete - refusing to arm.\n"
+    notify("12.xx/13.xx offsets are incomplete - refusing to arm.\n"
            "See HVBUG/findings/LINUX-OFFSETS-13.60-DERIVED.md.");
     return -1;
   }
@@ -379,9 +379,10 @@ int hv_defeat_13xx(void *shellcode_kernel, size_t shellcode_kernel_len) {
     return -1;
   }
   /* HPROBE: print the derived HV carveout base. On this devkit it must be 0x62800000 on EVERY
-   * 13.x. A different value on 13.20 means derive_H's EFI-map heuristic picked the wrong region,
-   * so the AP payload reads bogus heap/pcpus, the VMCB census fails, NP_ENABLE is never cleared,
-   * and the first .text write faults -- the exact 13.20 crash. Printed at ARM, no wake needed. */
+   * 12.x/13.x. A different value on 13.20 means derive_H's EFI-map heuristic picked the wrong
+   * region, so the AP payload reads bogus heap/pcpus, the VMCB census fails, NP_ENABLE is never
+   * cleared, and the first .text write faults -- the exact 13.20 crash. Printed at ARM, no wake
+   * needed. */
   notify("HPROBE: derived H = 0x%lx (expect 0x62800000; HV_HEAPOFF=+0x%lx PCPUS=+0x%lx)\n",
          (unsigned long)hv_base, (unsigned long)HV_HEAPOFF_OFF, (unsigned long)HV_PCPUS_OFF);
 

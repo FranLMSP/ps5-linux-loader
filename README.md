@@ -1,7 +1,7 @@
 # ps5-linux
 
 
-**ps5-linux** leverages patched HV vulnerabilities to transform your **PS5 Phat, Slim and Pro** console running **3.00-7.61 or 13.60 firmwares** into a highly capable Linux PC, unlocking its full hardware potential for desktop use. Powered by 8 CPU cores (16 threads) at **3.5 GHz** and a GPU at **2.23 GHz**, it provides enough performance to run Steam games and various emulators with impressive fluidity.
+**ps5-linux** leverages patched HV vulnerabilities to transform your **PS5 Phat, Slim and Pro** console running **3.00-7.61, 12.00-12.70 (experimental) or 13.60 firmwares** into a highly capable Linux PC, unlocking its full hardware potential for desktop use. Powered by 8 CPU cores (16 threads) at **3.5 GHz** and a GPU at **2.23 GHz**, it provides enough performance to run Steam games and various emulators with impressive fluidity.
 
 Features:
 
@@ -22,12 +22,13 @@ Features:
 - **4.00**, **4.02**, **4.03**, **4.50**, **4.51** with M.2 support
 - **5.00**, **5.02**, **5.10**, **5.50** with M.2 support
 - **6.00**, **6.02**, **6.50** with M.2 support
-- **10.xx
-- **11.xx
 - **7.00**, **7.01**, **7.20**, **7.40**, **7.60**, **7.61** with M.2 support
+- **12.00**, **12.02**, **12.20**, **12.40**, **12.60**, **12.70** with M.2 support — **experimental, untested** (see below)
 - **13.XX** with M.2 support — **PS5 Phat, Slim and Pro** (this fork)
 
-Support for 1.xx and 2.xx firmwares may be added in the future, but we will not prioritize this effort.
+10.xx and 11.xx are not supported. Support for 1.xx and 2.xx firmwares may be added in the future, but we will not prioritize this effort.
+
+> **12.xx is experimental and has not been booted on hardware yet.** The offset tables were transcribed from the public 10.xx-support release binary rather than independently re-derived, because no 12.xx kernel or hypervisor dumps were available. Two entries are known to be weak: 12.20 and 12.40 currently share an identical table, and 12.60 has no dedicated table and falls back to the 12.70 one. The loader prints a warning at arm time on both. If a 12.xx boot fails, updating to 13.60 is the supported path; a report with the last printed line and the exact firmware version is still useful.
 
 If you are on firmwares in-between or you want to update to a specific firmware, [download the correct PUP](https://darthsternie.net/ps5-firmwares/) and follow the [official guide](https://www.playstation.com/en-us/support/hardware/reinstall-playstation-system-software-safe-mode) to upgrade your PS5. **Obviously you cannot downgrade.**
 
@@ -265,7 +266,7 @@ For any future ps5-linux updates, you can download the `.deb` or `.pkg.tar.zst` 
 ## FAQ
 
 - Q: Will higher >=8.00 firmwares be supported?
-  - A: **13.60** is supported (base and PS5 Pro) in this fork. 8.00-13.50 are not supported; if you are on 12.00-13.60 you can update to 13.60.
+  - A: **13.60** is supported (base and PS5 Pro) in this fork. **12.00-12.70** is supported experimentally, but has not been validated on hardware yet; 8.00-11.xx and 12.xx versions outside that list are not supported. If you are on 12.00-13.60 and want the tested path, update to 13.60.
 - Q: Why can I not use M.2 on 3.xx?
   - A: Because the PS5 fails to boot with it attached.
 - Q: Can I dual-boot Linux and PS5 OS?

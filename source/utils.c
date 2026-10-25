@@ -86,11 +86,30 @@ int set_offsets(void) {
   if (fw == 0)
     return -1;
   switch (fw) {
+  case 0x1200:
+    env_offset = off_1200;
+    break;
+  case 0x1202:
+    env_offset = off_1202;
+    break;
+  case 0x1220:
+    env_offset = off_1220;
+    break;
+  case 0x1240:
+    env_offset = off_1240;
+    break;
+  case 0x1260:
+    /* No separate 12.60 table exists in the public 10.xx release; 12.70 is used. */
+    env_offset = off_1270;
+    break;
+  case 0x1270:
+    env_offset = off_1270;
+    break;
   case 0x1360:   /* 13.60 retail -- base-SKU and Pro (Pro detected at runtime by SoC id) */
     env_offset = off_1360;
     break;
   default:
-    return -1;   /* 13.60-only loader; all other firmware tables were removed in cleanup */
+    return -1;   /* 12.xx and 13.60 are supported; all other tables were removed in cleanup */
   }
   return 0;
 }

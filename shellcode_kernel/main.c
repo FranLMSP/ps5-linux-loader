@@ -46,22 +46,27 @@ __attribute__((section(".entry_point"))) uint32_t main(uint64_t add1,
   } else if ((0x0500 <= args_ptr->fw_version) &&
              (args_ptr->fw_version < 0x0800)) {
     // Already escaped.
-  } else if ((0x1300 <= args_ptr->fw_version) &&
+  } else if ((0x1200 <= args_ptr->fw_version) &&
              (args_ptr->fw_version < 0x1400)) {
-    /* 13.x -- already escaped, exactly like 05.00-07.61 above: the DR0 breakpoint on the
-     * kernel's own AP-start call started the AP at the carrier page, and the AP payload
+    /* 12.x and 13.x -- already escaped, exactly like 05.00-07.61 above: the DR0 breakpoint on
+     * the kernel's own AP-start call started the AP at the carrier page, and the AP payload
      * cleared NESTED_CTRL.NP_ENABLE (see source/hv_defeat_13xx.c). Nothing to do here, so fall
      * through to the common boot path below.
+     *
+     * 12.xx uses this same branch because the MSR 0x1B intercept that powers the 11xx route was
+     * removed between 11.00 and 12.00; the loader routes 12.xx to hv_defeat_13xx. The HDMI-ops
+     * block further down remains 13.xx-only -- its offsets are 13.60 preslides and must not be
+     * used on 12.xx, so 12.xx deliberately skips it and uses boot_linux()'s generic video path.
      *
      * WITHOUT this branch 0x1360 fell into the `else` and RETURNED IMMEDIATELY. Because the
      * ROP JUMPS into this shellcode rather than calling it, that `return` popped the IST7 ROP
      * stack -- which is the "screen went blue, then the console powered off completely" failure
      * on every wake. The loader's own dispatch handled 13.x (source/main.c); this one did not.
      *
-     * boot_linux() needs no 13.x constants: it is firmware-agnostic apart from one TMR block
-     * that 13.x deliberately skips. get_hv_shm() returns -1 for 13.x because that physical
-     * address was never derived -- and it does not need to be, because with NP_ENABLE clear the
-     * TMRs stop applying (§2), so n_tmrs = 0 is correct here and not a stopgap. */
+     * boot_linux() needs no 12.x/13.x constants: it is firmware-agnostic apart from one TMR block
+     * that 12.x/13.x deliberately skips. get_hv_shm() returns -1 for 12.x/13.x because that
+     * physical address was never derived -- and it does not need to be, because with NP_ENABLE
+     * clear the TMRs stop applying (§2), so n_tmrs = 0 is correct here and not a stopgap. */
   } else {
     return 0;
   }

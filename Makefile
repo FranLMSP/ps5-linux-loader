@@ -31,21 +31,22 @@ SC_AP_H := shellcode_ap/shellcode_ap.h
 # These used to have NO prerequisites, so once the .h existed `make` considered it up to date and
 # silently linked the OLD blob after a shellcode edit. The byte-blob is regenerated only when a
 # shellcode source changes, which is exactly what the prerequisites below now express.
-SC_HV_SRC   := $(wildcard shellcode_hv/*.c shellcode_hv/*.S shellcode_hv/*.h shellcode_hv/*.ld)
-SC_K_SRC    := $(wildcard shellcode_kernel/*.c shellcode_kernel/*.S shellcode_kernel/*.h shellcode_kernel/*.ld)
-SC_AP_SRC   := $(wildcard shellcode_ap/*.c shellcode_ap/*.S shellcode_ap/*.h shellcode_ap/*.ld)
+SC_HV_SRC   := $(filter-out $(SC_HV_H),$(wildcard shellcode_hv/*.c shellcode_hv/*.S shellcode_hv/*.h shellcode_hv/*.ld))
+SC_K_SRC    := $(filter-out $(SC_K_H),$(wildcard shellcode_kernel/*.c shellcode_kernel/*.S shellcode_kernel/*.h shellcode_kernel/*.ld))
+SC_AP_SRC   := $(filter-out $(SC_AP_H),$(wildcard shellcode_ap/*.c shellcode_ap/*.S shellcode_ap/*.h shellcode_ap/*.ld))
 
 all: $(SC_HV_H) $(SC_K_H) $(SC_AP_H) $(BIN)
 
 $(SC_HV_H): $(SC_HV_SRC)
 	$(MAKE) -C shellcode_hv
 
-$(SC_K_H): $(SC_K_SRC)
+# shellcode_kernel includes ../shellcode_hv/shellcode_hv.h, so it must wait for that blob.
+$(SC_K_H): $(SC_K_SRC) $(SC_HV_H)
 	$(MAKE) -C shellcode_kernel
 
 # The 13.x AP payload, built with the host toolchain (freestanding, linked at 0) rather than
 # the SDK, because it is a position-independent blob copied to a physical page at runtime.
-$(SC_AP_H):
+$(SC_AP_H): $(SC_AP_SRC)
 	$(MAKE) -C shellcode_ap
 
 # The loader's own objects embed the shellcode blobs through the generated .h files, but had no

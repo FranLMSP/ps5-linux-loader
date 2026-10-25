@@ -39,11 +39,22 @@ int main(void) {
     goto err;
   }
 
-  /* 13.60 only (base + Pro, differentiated at runtime by SoC id inside hv_defeat_13xx).
+  /* Two 12.xx tables are weaker than the others; say so at arm time rather than letting a
+   * failed boot hide which table was used. Neither warning fires on 12.00/12.02/12.20/12.70. */
+  if (fw == 0x1260)
+    notify("fw 12.60: the public release has no dedicated table; using the 12.70 offsets. "
+           "If this boot fails, suspect this alias first.\n");
+  else if (fw == 0x1240)
+    notify("fw 12.40: the public release's table is byte-identical to 12.20 and is untested. "
+           "If this boot fails, that copy is the first suspect.\n");
+
+  /* 12.xx and 13.xx (base + Pro, differentiated at runtime by SoC id inside hv_defeat_13xx).
    * Hook the kernel's own AP-start call (khook) rather than exploiting an MSR intercept.
-   * See source/hv_defeat_13xx.c for the route and source/offsets.c off_1360 for the fields;
-   * the function refuses to arm unless all required offsets are present. */
-  if ((0x1300 <= fw) && (fw < 0x1400)) {
+   * 12.xx needs the same route: the MSR 0x1B (APIC_BASE) intercept used by hv_defeat_1160 was
+   * removed between 11.00 and 12.00. See source/hv_defeat_13xx.c for the route; the fields come
+   * from off_1200/off_1202/off_1220/off_1240/off_1270 or off_1360 in source/offsets.c. The
+   * function refuses to arm unless all required offsets are present. */
+  if ((0x1200 <= fw) && (fw < 0x1400)) {
     if (hv_defeat_13xx(shellcode_kernel, shellcode_kernel_len))
       goto err;
   } else {
