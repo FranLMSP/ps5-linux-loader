@@ -5,6 +5,7 @@
 #include "config.h"
 #include "hv_defeat_13xx.h"
 #include "loader.h"
+#include "payload_cleanup.h"
 #include "prepare_resume.h"
 #include "utils.h"
 #include <unistd.h>
@@ -26,6 +27,11 @@ int main(void) {
            "is supported.");
     return -1;
   }
+
+  /* The loader is second-stage code: it already runs inside a jailbreak.  Stop
+   * known conflicting payloads before they can race the HV patch, but do it
+   * only after setup_env() has proved that kernel access works. */
+  cleanup_conflicting_payloads();
 
   if (fetch_linux(&linux_i)) {
     notify("Something went wrong while installing linux files.\n");
