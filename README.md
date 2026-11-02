@@ -153,10 +153,11 @@ Send the payload with your `$PS5IP` (shown on the page):
 socat -t 99999999 - TCP:$PS5IP:9021 < ps5-linux-loader.elf
 ```
 
-If all is successful, the payload will automatically go into rest mode. Wait until the orange LED stops blinking and becomes static. Only then, press the power button again to boot your PS5 into Linux. If the boot is successful, **the LED should turn white**. If it boots back into PS5 OS, then it's because you pressed the power button too early. Or, you did not enable rest mode features as described above. If it freezes instead of going into rest mode, then it is likely because you have etahen/kstuff enabled, which is incompatible. Disable them.
+If all is successful, the payload will automatically go into rest mode. Wait until the orange LED stops blinking and becomes static. Only then, press the power button again to boot your PS5 into Linux. If the boot is successful, **the LED should turn white**. If it boots back into PS5 OS, then it's because you pressed the power button too early. Or, you did not enable rest mode features as described above. The loader now stops running etaHEN/kstuff processes before arming, because they are incompatible, but it cannot undo kernel patches they already applied. If it still freezes instead of going into rest mode, reboot, jailbreak fresh, and launch this loader without loading etaHEN/kstuff first.
 
 If the LED is white, but you still have a blackscreen then:
 
+- Unplug USB keyboards/mice before starting Linux and plug them back in once it is up; see the FAQ for why an attached device can hang the USB controller during hand-off.
 - Try removing `video=DP-1:1920x1080@60` line in cmdline.txt.
 - Try setting HDCP on or off (try both).
 - Try different monitors or capture cards, ideally with different resolutions. Currently, some monitors have issues.
@@ -283,6 +284,10 @@ For any future ps5-linux updates, you can download the `.deb` or `.pkg.tar.zst` 
   - A: 1080p, 1440p and 2160p at 60Hz are broadly supported. 1440p@120Hz has been the only confirmed working on the DELL S3225QC yet. 120Hz or 30Hz may be added in the future.
 - Q: After reboot, I get a "Repairing" screen and "Your PS5 wasn't turned off properly." screen. Is that normal?
   - A: Yes, and it's harmless.
+- Q: Linux shows a black screen when a USB keyboard/mouse is already plugged in, but boots if I plug it in afterwards. Why?
+  - A: The PS5 OS leaves the xHCI USB controller running when the loader hands the machine to Linux. If a device is attached, the controller can still have an active transfer/DMA ring, and Linux's USB driver can hang while resetting it. (The "HC died" message seen on some Pro boots is the same class of controller/DMA failure.) The controller is clean when no device is attached, which is why booting without the keyboard and plugging it in afterwards works. This is a hand-off quirk, not a power or cable problem. Use that workaround for now; a controller reset before boot needs hardware validation.
+- Q: I see repeated "Failed: Unable to deserialize" (or similar "deserialize") messages while the exploit starts, but it still works. Is something broken?
+  - A: Those messages come from the WebKit/kernel exploit stage, not from this loader, and the exploit treats them as non-fatal. If an ELF loader is already running on port 9021, the launcher now sends the Linux loader straight to it and skips the exploit entirely, so you will not see them on that path. On a fresh boot, ignore them unless the exploit actually stops; then reboot and jailbreak fresh.
 
 ## Tips and tricks
 
